@@ -1,3 +1,4 @@
+﻿#if STEAMWORKS
 using BeardedManStudios.Forge.Networking.Unity;
 using Steamworks;
 using UnityEngine;
@@ -37,3 +38,4 @@ namespace ForgeSteamworksNETExample
 		}
 	}
 }
+#endif

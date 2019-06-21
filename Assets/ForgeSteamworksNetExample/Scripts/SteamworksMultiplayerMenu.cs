@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using BeardedManStudios.Forge.Networking;
 using BeardedManStudios.Forge.Networking.Unity;
 using BeardedManStudios.Forge.Networking.Lobby;
@@ -29,7 +29,7 @@ namespace ForgeSteamworksNETExample
 
 		[Header("Server information")]
 		public int maximumNumberOfPlayers = 5;
-		public string gameId = "forgeGame";
+		public string gameId = "forgeFacepunchGame";
 		public string type = "Deathmatch";
 		public string mode = "Teams";
 		public string comment = "Demo comment...";
@@ -44,22 +44,22 @@ namespace ForgeSteamworksNETExample
 		private NetWorker server;
 
 		/// <summary>
-		/// The Steam ID of the selected lobby to join.
+		/// The Selected lobby to join.
 		/// </summary>
 		/// <remarks>This value is set by the join menu when a server in the server list is clicked</remarks>
-		private CSteamID selectedLobby;
+		private Steamworks.Data.Lobby selectedLobby =  default(Steamworks.Data.Lobby);
 
 		private List<Button> _uiButtons = new List<Button>();
 		private bool _matchmaking = false;
 
 		private void Start()
 		{
-#if !STEAMWORKS
+#if !FACEPUNCH_STEAMWORKS
 			Debug.LogError("Missing STEAMWORKS define. This menu will not work without it");
 			throw new SystemException("Missing STEAMWORKS define. This menu will not work without it");
 #endif
 
-			SteamAPI.Init();
+			//SteamAPI.Init();
 
 			GetPlayerSteamInformation();
 
@@ -79,9 +79,9 @@ namespace ForgeSteamworksNETExample
 		/// Usually called by the <see cref="JoinMenu"/> when a server list item is clicked
 		/// </summary>
 		/// <param name="steamId"></param>
-		public void SetSelectedLobby(CSteamID steamId)
+		public void SetSelectedLobby(Steamworks.Data.Lobby lobby)
 		{
-			selectedLobby = steamId;
+			selectedLobby = lobby;
 		}
 
 		/// <summary>
@@ -100,13 +100,14 @@ namespace ForgeSteamworksNETExample
 			}
 
 			// Need to select a lobby first.
-			if (selectedLobby == CSteamID.Nil)
+			if (selectedLobby.Id == 0)
 				return;
 
 			NetWorker client;
 
-			client = new SteamP2PClient();
-			((SteamP2PClient)client).Connect(selectedLobby);
+			client = new FacepunchP2PClient();
+			((FacepunchP2PClient)client).Connect(selectedLobby);
+			FacepunchSteamworksController.SetNetworker((BaseFacepunchP2P)client);
 
 			// Steamworks API calls are async so we need to delay the rest of the networker setup until
 			// the local user joins the selected lobby.
@@ -142,14 +143,34 @@ namespace ForgeSteamworksNETExample
 			// Currently there is a bug in the SteamP2PServer code where the lobby max member count is hard coded to be 5.
 			// Until a fix is in place please change line 186 of the SteamP2PServer to read
 			//    `m_CreateLobbyResult = SteamMatchmaking.CreateLobby(lobbyType, MaxConnections);`
-			server = new SteamP2PServer(maximumNumberOfPlayers);
-
+			server = new FacepunchP2PServer(maximumNumberOfPlayers);
+			((FacepunchP2PServer)server).serverCreated += OnServerCreated;
 			// Don't yet have a way to invite players to lobby. Until then all hosts are set to be public
 			//((SteamP2PServer)server).Host(SteamUser.GetSteamID(), isPrivateLobby ? ELobbyType.k_ELobbyTypeFriendsOnly : ELobbyType.k_ELobbyTypePublic, OnLobbyReady);
-			((SteamP2PServer)server).Host(SteamUser.GetSteamID(), ELobbyType.k_ELobbyTypePublic, OnLobbyReady);
-
+			((FacepunchP2PServer)server).Host();
+			FacepunchSteamworksController.SetNetworker((BaseFacepunchP2P)server);
 			server.playerTimeout += (player, sender) => { Debug.Log("Player " + player.NetworkId + " timed out"); };
 
+		}
+
+		private void OnServerCreated(NetWorker sender)
+		{
+			// If the host has not set a server name then let's use his/her name instead to name the lobby
+			var personalName = SteamClient.Name;
+			var gameName = serverName.text == "" ? $"{personalName}'s game" : serverName.text;
+
+			var lobby = ((FacepunchP2PServer)server).Lobby;
+
+			// Set the name of the lobby
+			lobby.SetData("name", gameName);
+
+			// Set the unique id of our game so the server list only gets the games with this id
+			lobby.SetData("fnr_gameId", gameId);
+
+			// Set all other game information
+			lobby.SetData("fnr_gameType", type);
+			lobby.SetData("fnr_gameMode", mode);
+			lobby.SetData("fnr_gameDesc", comment);
 			Connected(server);
 		}
 
@@ -219,39 +240,17 @@ namespace ForgeSteamworksNETExample
 		/// </summary>
 		private void GetPlayerSteamInformation()
 		{
-			if (SteamManager.Initialized) {
-				if (playerAvatar == null)
-					playerAvatar = GetComponentInChildren<SteamAvatar>();
+			if (!SteamClient.IsValid)
+				return;
 
-				if (playerAvatar == null)
-					return;
+			if (playerAvatar == null)
+				playerAvatar = GetComponentInChildren<SteamAvatar>();
 
-				playerAvatar.Initialize(SteamUser.GetSteamID());
-			}
-		}
+			if (playerAvatar == null)
+				return;
 
-		/// <summary>
-		/// Callback used when a host successfully created a lobby.
-		/// Sets lobby metadata that is used on the server browser.
-		/// </summary>
-		private void OnLobbyReady()
-		{
-			// If the host has not set a server name then let's use his/her name instead to name the lobby
-			var personalName = SteamFriends.GetPersonaName();
-			var gameName = serverName.text == "" ? $"{personalName}'s game" : serverName.text;
-
-			var lobbyId = ((SteamP2PServer) server).LobbyID;
-
-			// Set the name of the lobby
-			SteamMatchmaking.SetLobbyData(lobbyId, "name", gameName);
-
-			// Set the unique id of our game so the server list only gets the games with this id
-			SteamMatchmaking.SetLobbyData(lobbyId, "fnr_gameId", gameId);
-
-			// Set all other game information
-			SteamMatchmaking.SetLobbyData(lobbyId, "fnr_gameType", type);
-			SteamMatchmaking.SetLobbyData(lobbyId, "fnr_gameMode", mode);
-			SteamMatchmaking.SetLobbyData(lobbyId, "fnr_gameDesc", comment);
+			playerAvatar.InitializeAvatar(SteamClient.SteamId, SteamClient.Name);
+		
 		}
 	}
 }

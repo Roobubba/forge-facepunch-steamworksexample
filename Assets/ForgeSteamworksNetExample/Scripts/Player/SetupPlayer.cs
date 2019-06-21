@@ -1,4 +1,4 @@
-using BeardedManStudios.Forge.Networking;
+﻿using BeardedManStudios.Forge.Networking;
 using BeardedManStudios.Forge.Networking.Generated;
 using Steamworks;
 using UnityEngine;
@@ -33,20 +33,21 @@ namespace ForgeSteamworksNETExample.Player
 
 		private void OnNetworkStarted()
 		{
-			if (player.networkObject.IsOwner && SteamManager.Initialized)
+			if (player.networkObject.IsOwner)
 			{
-				var steamId = SteamUser.GetSteamID();
+				var steamId = SteamClient.SteamId;
 
-				player.networkObject.SendRpc(PlayerBehavior.RPC_SETUP_PLAYER, Receivers.AllBuffered, steamId.m_SteamID);
+				player.networkObject.SendRpc(PlayerBehavior.RPC_SETUP_PLAYER, Receivers.AllBuffered, steamId.Value, SteamClient.Name);
 			}
 		}
 
 		private void OnSetupPlayerCalled(RpcArgs args)
 		{
 			var steamId = args.GetNext<ulong>();
+			var name = args.GetNext<string>();
 			player.SetSteamId(steamId);
-
-			avatar.Initialize((CSteamID)steamId, AvatarSize.Medium);
+			var friend = FacepunchSteamworksController.GetFriend(steamId);
+			avatar.InitializeAvatar(friend, name, AvatarSize.Medium);
 		}
 	}
 }

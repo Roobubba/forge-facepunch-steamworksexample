@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using BeardedManStudios.Forge.Networking;
 using BeardedManStudios.Forge.Networking.Unity;
 using UnityEngine;
@@ -51,7 +51,7 @@ namespace ForgeSteamworksNETExample.Player
 			{
 				NetworkManager.Instance.Disconnect();
 
-				SceneManager.LoadScene(0);
+				SceneManager.LoadScene(1);
 			}
 		}
 

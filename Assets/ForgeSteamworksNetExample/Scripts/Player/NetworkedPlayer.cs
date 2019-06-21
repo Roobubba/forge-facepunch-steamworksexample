@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using BeardedManStudios.Forge.Logging;
 using BeardedManStudios.Forge.Networking;
 using BeardedManStudios.Forge.Networking.Generated;
@@ -41,7 +41,7 @@ namespace ForgeSteamworksNETExample.Player
 
 		private Animator baseAnimator;
 
-		private CSteamID steamId;
+		private SteamId steamId;
 
 		private void Awake()
 		{
@@ -105,7 +105,7 @@ namespace ForgeSteamworksNETExample.Player
 					{
 						BMSLog.Log("Server disconnected");
 						// Go back to the multiplayer menu
-						SceneManager.LoadScene(0);
+						SceneManager.LoadScene(1);
 					}
 				}
 			});
@@ -118,12 +118,12 @@ namespace ForgeSteamworksNETExample.Player
 		}
 
 		/// <summary>
-		/// Set the <see cref="CSteamID"/> of this player
+		/// Set the <see cref="SteamId"/> of this player
 		/// </summary>
 		/// <param name="steamId"></param>
 		public void SetSteamId(ulong steamId)
 		{
-			this.steamId = (CSteamID) steamId;
+			this.steamId = (SteamId) steamId;
 		}
 
 		/// <summary>

@@ -4,8 +4,8 @@ using UnityEngine;
 
 namespace BeardedManStudios.Forge.Networking.Generated
 {
-	[GeneratedRPC("{\"types\":[[\"ulong\"]]")]
-	[GeneratedRPCVariableNames("{\"types\":[[\"steamId\"]]")]
+	[GeneratedRPC("{\"types\":[[\"ulong\", \"string\"]]")]
+	[GeneratedRPCVariableNames("{\"types\":[[\"steamId\", \"name\"]]")]
 	public abstract partial class PlayerBehavior : NetworkBehavior
 	{
 		public const byte RPC_SETUP_PLAYER = 0 + 5;
@@ -22,7 +22,7 @@ namespace BeardedManStudios.Forge.Networking.Generated
 			networkObject.AttachedBehavior = this;
 
 			base.SetupHelperRpcs(networkObject);
-			networkObject.RegisterRpc("SetupPlayer", SetupPlayer, typeof(ulong));
+			networkObject.RegisterRpc("SetupPlayer", SetupPlayer, typeof(ulong), typeof(string));
 
 			networkObject.onDestroy += DestroyGameObject;
 
@@ -98,6 +98,7 @@ namespace BeardedManStudios.Forge.Networking.Generated
 		/// <summary>
 		/// Arguments:
 		/// ulong steamId
+		/// string name
 		/// </summary>
 		public abstract void SetupPlayer(RpcArgs args);
 

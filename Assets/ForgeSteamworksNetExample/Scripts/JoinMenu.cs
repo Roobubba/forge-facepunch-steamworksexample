@@ -1,10 +1,11 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using BeardedManStudios.Forge.Networking;
 using BeardedManStudios.Forge.Networking.Unity;
 using Steamworks;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
+using System.Threading.Tasks;
 
 namespace ForgeSteamworksNETExample
 {
@@ -44,6 +45,12 @@ namespace ForgeSteamworksNETExample
 		private int selectedServer = -1;
 
 		/// <summary>
+		/// Base refresh time for each lobby in the list
+		/// </summary>
+		[SerializeField]
+		private const float serverRefreshTime = 8.0f;
+
+		/// <summary>
 		/// The list of servers the client knows about
 		/// </summary>
 		private List<ServerListItemData> serverList = new List<ServerListItemData>();
@@ -63,10 +70,6 @@ namespace ForgeSteamworksNETExample
 		/// </summary>
 		private SteamworksMultiplayerMenu mpMenu;
 
-		// Steamworks API callback methods
-		private Callback<LobbyMatchList_t> callbackLobbyListRequest;
-		private Callback<LobbyDataUpdate_t> callbackLobbyDataUpdate;
-
 		private void Awake()
 		{
 			// Init the MainThreadManager if it has not been already
@@ -79,9 +82,7 @@ namespace ForgeSteamworksNETExample
 			// Disable the connect button until the user has selected a server
 			connectButton.interactable = false;
 
-			// Make sure steam callbacks are set
-			callbackLobbyListRequest = Callback<LobbyMatchList_t>.Create(OnLobbyListRequested);
-			callbackLobbyDataUpdate = Callback<LobbyDataUpdate_t>.Create(OnLobbyDataUpdated);
+			SteamMatchmaking.OnLobbyDataChanged += OnLobbyDataUpdated;
 
 			// Request the initial lobby list
 			GetAvailableLobbyList();
@@ -100,7 +101,7 @@ namespace ForgeSteamworksNETExample
 
 				// TODO: Might worth extracting the 20.0f into a const or a field to be configured via the inspector
 				//       Is refreshing the list every 20ish seconds good enough?
-				nextListUpdateTime = Time.time + 20.0f + UnityEngine.Random.Range(0.0f, 1.0f);
+				nextListUpdateTime = Time.time + 15.0f + UnityEngine.Random.Range(0.0f, 1.0f);
 			}
 
 			foreach (var server in serverList)
@@ -108,12 +109,16 @@ namespace ForgeSteamworksNETExample
 				if (Time.time > server.NextUpdate)
 				{
 					// Time to re-request the server information
-					SteamMatchmaking.RequestLobbyData(server.SteamId);
+					BeardedManStudios.Forge.Logging.BMSLog.Log("Attempting lobby refresh for lobby: " + server.lobby.Id.Value.ToString());
+					if (!server.lobby.Refresh())
+					{
+						BeardedManStudios.Forge.Logging.BMSLog.Log("Refresh request failed for lobby: " + server.lobby.Id.Value.ToString());
+					}
 
 					// TODO: Might worth extracting the 5.0f into a const or a field to be configured via the inspector
 					//       Is re-requesting the server/lobby info every 5 seconds good enough? Should it be less frequent?
 					//
-					server.NextUpdate = Time.time + 5.0f + UnityEngine.Random.Range(0.0f, 1.0f);
+					server.NextUpdate = Time.time + serverRefreshTime + UnityEngine.Random.Range(0.0f, 1.0f);
 				}
 			}
 		}
@@ -143,13 +148,13 @@ namespace ForgeSteamworksNETExample
 		/// <summary>
 		/// Add a server to the list of servers
 		/// </summary>
-		/// <param name="steamId">The <see cref="CSteamID"/> of the lobby/server to add to the list</param>
-		private void AddServer(CSteamID steamId)
+		/// <param name="lobby">The <see cref="Steamworks.Data.Lobby"/> of the lobby/server to add to the list</param>
+		private void AddServer(Steamworks.Data.Lobby lobby)
 		{
 			for (int i = 0; i < serverList.Count; ++i)
 			{
 				var server = serverList[i];
-				if (server.SteamId == steamId)
+				if (server.lobby.Id == lobby.Id)
 				{
 					// Already have that server listed nothing else to do
 					return;
@@ -158,7 +163,7 @@ namespace ForgeSteamworksNETExample
 
 			var serverListItemData = new ServerListItemData {
 				ListItem = GameObject.Instantiate<ServerListEntry>(serverListEntryTemplate, servers.content),
-				SteamId = steamId
+				lobby = lobby
 			};
 
 			// Make the list item visible
@@ -246,13 +251,13 @@ namespace ForgeSteamworksNETExample
 				// Rename the connect button to state the name of the server/lobby to be joined
 				connectButtonLabel.text = $"Connect to {serverList[index].ListItem.serverName.text}";
 				// Tell the multiplayer menu the steam id of the lobby that was selected
-				mpMenu.SetSelectedLobby(serverList[selectedServer].SteamId);
+				mpMenu.SetSelectedLobby(serverList[selectedServer].lobby);
 			}
 			else
 			{
 				connectButton.interactable = false;
 				connectButtonLabel.text = "Connect";
-				mpMenu.SetSelectedLobby(CSteamID.Nil);
+				mpMenu.SetSelectedLobby(default(Steamworks.Data.Lobby));
 			}
 		}
 
@@ -271,26 +276,49 @@ namespace ForgeSteamworksNETExample
 		/// </summary>
 		private void GetAvailableLobbyList()
 		{
-			if (SteamManager.Initialized)
-			{
-				if (!onlyShowFriendsGames)
-				{
-					// Get servers from everywhere change it to ELobbyDistanceFilter.Default to get only near servers
-					SteamMatchmaking.AddRequestLobbyListDistanceFilter(ELobbyDistanceFilter.k_ELobbyDistanceFilterWorldwide);
-					// Only get games that have our id
-					SteamMatchmaking.AddRequestLobbyListStringFilter("fnr_gameId", mpMenu.gameId,
-						ELobbyComparison.k_ELobbyComparisonEqual);
-					// Uncomment this if the default count of 50 is not enough.
-					//SteamMatchmaking.AddRequestLobbyListResultCountFilter(100);
+			var lobbyQuery = new Steamworks.Data.LobbyQuery();
 
-					// Request list of lobbies based on above filters from Steam
-					SteamMatchmaking.RequestLobbyList();
+			// Near and Far filters are also available on LobbyQuery
+			lobbyQuery.FilterDistanceWorldwide();
+
+			// Increase the max results from 50 just in case they're dropping off the list for further afield players
+			// NB this is temporary while Facepunch.Steamworks has no lobby string filters
+			lobbyQuery.WithMaxResults(200);
+
+			// Get servers from everywhere change it to ELobbyDistanceFilter.Default to get only near servers
+			//SteamMatchmaking.AddRequestLobbyListDistanceFilter(ELobbyDistanceFilter.k_ELobbyDistanceFilterWorldwide);
+			// Only get games that have our id
+			//SteamMatchmaking.AddRequestLobbyListStringFilter("fnr_gameId", mpMenu.gameId,
+			//	ELobbyComparison.k_ELobbyComparisonEqual);
+			// Uncomment this if the default count of 50 is not enough.
+			//SteamMatchmaking.AddRequestLobbyListResultCountFilter(100);
+
+			// Request list of lobbies based on above filters from Steam
+			//SteamMatchmaking.RequestLobbyList();
+			GetLobbiesAsync(lobbyQuery);
+		}
+
+		private async void GetLobbiesAsync(Steamworks.Data.LobbyQuery lobbyQuery)
+		{
+			await GetLobbies(lobbyQuery);
+		}
+
+		private async Task GetLobbies(Steamworks.Data.LobbyQuery lobbyQuery)
+		{
+			var lobbies = await lobbyQuery.RequestAsync();
+			if (lobbies != null)
+			{
+				foreach (var lobby in lobbies)
+				{
+					if (lobby.GetData("fnr_gameId") == "forgeFacepunchGame")
+					{
+						AddServer(lobby);
+					}
 				}
-				else
-					GetFriendGamesList();
 			}
 		}
 
+		/*
 		/// <summary>
 		/// Check if any of the current user's friends play this game and add the lobby to the server list if they do.
 		/// </summary>
@@ -319,6 +347,8 @@ namespace ForgeSteamworksNETExample
 			}
 		}
 
+
+
 		/// <summary>
 		/// Handle the RequestLobbyList Steam API callback
 		/// </summary>
@@ -332,33 +362,59 @@ namespace ForgeSteamworksNETExample
 				SteamMatchmaking.RequestLobbyData(lobbyId);
 			}
 		}
+		*/
 
 		/// <summary>
 		/// Handle the RequestLobbyData Steam API callback
 		/// </summary>
 		/// <param name="result">The <see cref="LobbyDataUpdate_t"/> result set</param>
-		private void OnLobbyDataUpdated(LobbyDataUpdate_t result)
+		private void OnLobbyDataUpdated(Steamworks.Data.Lobby lobby)
 		{
 			for (int i = 0; i < serverList.Count; i++)
 			{
-				if (serverList[i].SteamId.m_SteamID == result.m_ulSteamIDLobby)
+				if (serverList[i].lobby.Id == lobby.Id)
 				{
-					// Lobby no longer exists so remove it from the list
-					if (result.m_bSuccess == 0)
+					// No-one is in the lobby, get rid!
+					if (lobby.MemberCount == 0)
 					{
 						RemoveServer(i);
 						return;
 					}
 
-					serverList[i].ListItem.serverName.text = SteamMatchmaking.GetLobbyData(serverList[i].SteamId, "name");
-					serverList[i].ListItem.gameType.text = SteamMatchmaking.GetLobbyData(serverList[i].SteamId, "fnr_gameType");
-					serverList[i].ListItem.gameMode.text = SteamMatchmaking.GetLobbyData(serverList[i].SteamId, "fnr_gameMode");
-					var maxPlayers = SteamMatchmaking.GetLobbyMemberLimit(serverList[i].SteamId);
-					var currPlayers = SteamMatchmaking.GetNumLobbyMembers(serverList[i].SteamId);
+					foreach (var entry in lobby.Data)
+					{
+						switch (entry.Key)
+						{
+							case "name":
+								serverList[i].ListItem.serverName.text = entry.Value;
+								break;
+							case "fnr_gameType":
+								serverList[i].ListItem.gameType.text = entry.Value;
+								break;
+							case "fnr_gameMode":
+								serverList[i].ListItem.gameMode.text = entry.Value;
+								break;
+							default:
+								break;
+						}
+					}
+
+					var maxPlayers = lobby.MaxMembers;
+					var currPlayers = lobby.MemberCount;
 					serverList[i].ListItem.playerCount.text = $"{currPlayers}/{maxPlayers}";
 					return;
 				}
 			}
+		}
+
+		private void OnDestroy()
+		{
+			SteamMatchmaking.OnLobbyDataChanged -= OnLobbyDataUpdated;
+		}
+
+		private void OnApplicationQuit()
+		{
+			SteamMatchmaking.OnLobbyDataChanged -= OnLobbyDataUpdated;
 		}
 	}
 
@@ -368,9 +424,9 @@ namespace ForgeSteamworksNETExample
 	internal class ServerListItemData
 	{
 		/// <summary>
-		/// The <see cref="CSteamID"/> of the lobby/server
+		/// The <see cref="lobby"/> of the lobby/server
 		/// </summary>
-		public CSteamID SteamId;
+		public Steamworks.Data.Lobby lobby;
 
 		/// <summary>
 		/// Reference to the UI element of this server

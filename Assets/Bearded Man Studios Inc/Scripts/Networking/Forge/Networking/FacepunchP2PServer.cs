@@ -35,11 +35,43 @@ namespace BeardedManStudios.Forge.Networking
 		private CommonServerLogic commonServerLogic;
 		private SteamNetworkingPlayer currentReadingPlayer = null;
 
+#region Steam P2P Callbacks
+
+		/// <summary>
+		/// Callback for SteamNetworking.OnP2PSessionRequest
+		/// Accepts all incoming connections
+		/// </summary>
+		/// <param name="requestorSteamId">Incoming P2P request</param>
+		private void OnP2PSessionRequest(SteamId requestorSteamId)
+		{
+			if (AcceptingConnections)
+			{
+				if (!SteamNetworking.AcceptP2PSessionWithUser(requestorSteamId))
+					Logging.BMSLog.LogWarning("Could not accept P2P Session with user: " + requestorSteamId.Value);
+				else
+					Logging.BMSLog.Log("P2PSessionRequest accepted with user: " + requestorSteamId.Value);
+			}
+			else
+				Logging.BMSLog.Log("P2P Request received but server is not accepting connections");
+		}
+
+		/// <summary>
+		/// Callback for SteamNetworking.OnP2PConnectionFailed
+		/// </summary>
+		/// <param name="remoteSteamId">SteamId of the remote peer</param>
+		private void OnP2PConnectionFailed(SteamId remoteSteamId)
+		{
+			Logging.BMSLog.Log("OnP2PConnectionFailed called. Remote steamId: " + remoteSteamId.Value.ToString());
+		}
+
+#endregion
+
 		public FacepunchP2PServer(int maxConnections) : base(maxConnections)
 		{
-			StartAcceptingConnections();
 			BannedAddresses = new List<string>();
 			commonServerLogic = new CommonServerLogic(this);
+			SteamNetworking.OnP2PSessionRequest += OnP2PSessionRequest;
+			SteamNetworking.OnP2PConnectionFailed += OnP2PConnectionFailed;
 		}
 
 		/// <summary>
@@ -154,7 +186,7 @@ namespace BeardedManStudios.Forge.Networking
 				}
 
 				var selfSteamId = SteamClient.SteamId;
-				Client = new CachedFacepunchP2PClient(selfSteamId, true);
+				Client = new CachedFacepunchP2PClient(selfSteamId);
 				Me = new NetworkingPlayer(ServerPlayerCounter++, selfSteamId, true, this)
 				{
 					InstanceGuid = InstanceGuid.ToString()
@@ -182,6 +214,7 @@ namespace BeardedManStudios.Forge.Networking
 				// Set myself as a connected client
 				Me.Connected = true;
 				OnServerCreated();
+				StartAcceptingConnections();
 			}
 			catch (Exception e)
 			{
@@ -262,8 +295,10 @@ namespace BeardedManStudios.Forge.Networking
 					OnForcedDisconnect();
 
 				// Stop listening for new connections
-				Client.Close(Lobby);
+				Client.Close();
 			}
+			if (Lobby.Id.Value > 0)
+				Lobby.Leave();
 		}
 
 		/// <summary>
@@ -321,18 +356,6 @@ namespace BeardedManStudios.Forge.Networking
 		/// <param name="forced">Was the removal forced or not?</param>
 		private void FinalizeRemovePlayer(NetworkingPlayer player, bool forced)
 		{
-			// TESTING STEAM NETWORKING DISCONNECTION CODE HERE INSTEAD OF IN THE CACHED CLIENT
-			if (!SteamNetworking.CloseP2PSessionWithUser(player.SteamID))
-			{
-				if (player.SteamID != SteamClient.SteamId)
-					Logging.BMSLog.LogWarning("Could not close P2P Session with user: " + player.SteamID.Value);
-			}
-			else
-			{
-				Logging.BMSLog.Log("Closed P2PSession with user: " + player.SteamID.Value.ToString());
-			}
-			// END TEST ZONE
-
 			steamPlayers.Remove(player.SteamID);
 			OnPlayerDisconnected(player);
 

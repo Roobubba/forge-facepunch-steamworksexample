@@ -11,8 +11,6 @@ namespace BeardedManStudios.Forge.Networking
 {
 	public class CachedFacepunchP2PClient : IDisposable
 	{
-		public bool isHost = false;
-
 		private bool disposed = false;
 		private bool active = false;
 		protected bool Active
@@ -25,23 +23,13 @@ namespace BeardedManStudios.Forge.Networking
 		private BMSByte recBuffer = new BMSByte();
 		private Dictionary<EndPoint, string> connections = new Dictionary<EndPoint, string>();
 
-		/*public CachedFacepunchP2PClient()
+		public CachedFacepunchP2PClient()
 		{
-			// Listen for clients wishing to start P2PConnections
-			SteamNetworking.OnP2PSessionRequest += OnP2PSessionRequest;
-		}*/
 
-		public CachedFacepunchP2PClient(SteamId endPoint, bool hosting = false)
+		}
+
+		public CachedFacepunchP2PClient(SteamId endPoint)
 		{
-			isHost = hosting;
-
-			// Listen for clients wishing to start P2PConnections
-			if (isHost)
-			{
-				SteamNetworking.OnP2PSessionRequest += OnP2PSessionRequest;
-				SteamNetworking.OnP2PConnectionFailed += OnP2PConnectionFailed;
-			}
-
 			steamEndPoint = endPoint;
 			recBuffer.SetSize(65536);
 		}
@@ -49,9 +37,8 @@ namespace BeardedManStudios.Forge.Networking
 		/// <summary>
 		/// Dispose of this CachedFacepunchP2PClient
 		/// </summary>
-		public void Close(Steamworks.Data.Lobby lobby)
+		public void Close()
 		{
-			lobby.Leave();
 			((IDisposable)this).Dispose();
 		}
 
@@ -120,31 +107,7 @@ namespace BeardedManStudios.Forge.Networking
 			return (DoSend(dgram, bytes, steamId, type));
 		}
 
-		/// <summary>
-		/// Callback for SteamNetworking.OnP2PSessionRequest
-		/// Accepts all incoming connections
-		/// </summary>
-		/// <param name="requestorSteamId">Incoming P2P request</param>
-		private void OnP2PSessionRequest(SteamId requestorSteamId)
-		{
-			if (!SteamNetworking.AcceptP2PSessionWithUser(requestorSteamId))
-			{
-				Logging.BMSLog.LogWarning("Could not accept P2P Session with user: " + requestorSteamId.Value);
-			}
-			else
-			{
-				Logging.BMSLog.Log("P2PSessionRequest accepted with user: " + requestorSteamId.Value);
-			}
-		}
 
-		/// <summary>
-		/// Callback for SteamNetworking.OnP2PConnectionFailed
-		/// </summary>
-		/// <param name="remoteSteamId">SteamId of the remote peer</param>
-		private void OnP2PConnectionFailed(SteamId remoteSteamId)
-		{
-			Logging.BMSLog.Log("OnP2PConnectionFailed called. Remote steamId: " + remoteSteamId.Value.ToString());
-		}
 
 		/// <summary>
 		/// On disposal of this CachedFacepunchP2PClient IDisposable object
@@ -166,7 +129,7 @@ namespace BeardedManStudios.Forge.Networking
 
 			disposed = true;
 
-			if (disposing && isHost)
+			if (disposing)
 			{
 				// Dispose of Steam P2P Socket
 				if (!SteamNetworking.CloseP2PSessionWithUser(steamEndPoint))
@@ -178,9 +141,6 @@ namespace BeardedManStudios.Forge.Networking
 				{
 					Logging.BMSLog.Log("Closed P2PSession with user: " + steamEndPoint.Value.ToString());
 				}
-
-				SteamNetworking.OnP2PSessionRequest -= OnP2PSessionRequest;
-				SteamNetworking.OnP2PConnectionFailed -= OnP2PConnectionFailed;
 			}
 		}
 

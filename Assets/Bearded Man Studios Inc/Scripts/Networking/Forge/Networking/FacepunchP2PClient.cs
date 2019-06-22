@@ -35,6 +35,15 @@ namespace BeardedManStudios.Forge.Networking
 		private bool headerExchanged = false;
 
 		/// <summary>
+		/// Callback for SteamNetworking.OnP2PConnectionFailed
+		/// </summary>
+		/// <param name="remoteSteamId">SteamId of the remote peer</param>
+		private void OnP2PConnectionFailed(SteamId remoteSteamId)
+		{
+			Logging.BMSLog.Log("OnP2PConnectionFailed called. Remote steamId: " + remoteSteamId.Value.ToString());
+		}
+
+		/// <summary>
 		/// Sends data to the server
 		/// </summary>
 		/// <param name="frame">Data to send</param>
@@ -139,6 +148,9 @@ namespace BeardedManStudios.Forge.Networking
 							connectAttemptFailed(this);
 					}
 				});
+
+				SteamNetworking.OnP2PConnectionFailed += OnP2PConnectionFailed;
+
 			}
 			catch (Exception e)
 			{
@@ -175,6 +187,9 @@ namespace BeardedManStudios.Forge.Networking
 		public override void Disconnect(bool forced)
 		{
 			Logging.BMSLog.Log("<color=cyan>FacepunchP2P client disconnecting...</color>");
+
+			if (Lobby.Id.Value > 0)
+				Lobby.Leave();
 
 			if (Client == null)
 				return;
@@ -357,7 +372,7 @@ namespace BeardedManStudios.Forge.Networking
 			OnDisconnected();
 
 			// Close our CachedFacepunchP2PClient so that it can no longer be used
-			Client.Close(Lobby);
+			Client.Close();
 			Client = null;
 		}
 

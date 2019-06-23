@@ -52,14 +52,14 @@ public class FacepunchSteamworksController : MonoBehaviour
 
 			foreach (var steamFriend in SteamFriends.GetFriends())
 			{
-				if (steamFriend.Id.Value == steamId)
-				{
-					allFriends.Add(steamId, steamFriend.Id);
-					return steamFriend.Id;
-				}
-				else
+				var temp2 = default(SteamId);
+				if (!allFriends.TryGetValue(steamFriend.Id.Value, out temp2))
 				{
 					allFriends.Add(steamFriend.Id.Value, steamFriend.Id);
+				}
+				if (steamFriend.Id.Value == steamId)
+				{
+					return steamFriend.Id;
 				}
 			}
 			if (networker != null)

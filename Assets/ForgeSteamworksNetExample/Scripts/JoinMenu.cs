@@ -83,6 +83,8 @@ namespace ForgeSteamworksNETExample
 			connectButton.interactable = false;
 
 			SteamMatchmaking.OnLobbyDataChanged += OnLobbyDataUpdated;
+			SteamMatchmaking.OnLobbyMemberJoined += OnLobbyMemberJoined;
+			SteamMatchmaking.OnLobbyMemberLeave += OnLobbyMemberLeave;
 
 			// Request the initial lobby list
 			GetAvailableLobbyList();
@@ -407,6 +409,16 @@ namespace ForgeSteamworksNETExample
 			}
 		}
 
+		private void OnLobbyMemberJoined(Steamworks.Data.Lobby lobby, Friend friend)
+		{
+			BeardedManStudios.Forge.Logging.BMSLog.Log(friend.Name + " joined the lobby");
+		}
+
+		private void OnLobbyMemberLeave(Steamworks.Data.Lobby lobby, Friend friend)
+		{
+			BeardedManStudios.Forge.Logging.BMSLog.Log(friend.Name + " left the lobby");
+		}
+
 		private void OnDestroy()
 		{
 			SteamMatchmaking.OnLobbyDataChanged -= OnLobbyDataUpdated;
@@ -415,6 +427,8 @@ namespace ForgeSteamworksNETExample
 		private void OnApplicationQuit()
 		{
 			SteamMatchmaking.OnLobbyDataChanged -= OnLobbyDataUpdated;
+			SteamMatchmaking.OnLobbyMemberJoined -= OnLobbyMemberJoined;
+			SteamMatchmaking.OnLobbyMemberLeave -= OnLobbyMemberLeave;
 		}
 	}
 

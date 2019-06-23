@@ -59,12 +59,12 @@ namespace BeardedManStudios.Forge.Networking
 		/// Callback for SteamNetworking.OnP2PConnectionFailed
 		/// </summary>
 		/// <param name="remoteSteamId">SteamId of the remote peer</param>
-		private void OnP2PConnectionFailed(SteamId remoteSteamId)
+		private void OnP2PConnectionFailed(SteamId remoteSteamId, P2PSessionError error)
 		{
-			Logging.BMSLog.Log("OnP2PConnectionFailed called. Remote steamId: " + remoteSteamId.Value.ToString());
+			Logging.BMSLog.Log("OnP2PConnectionFailed with error: " + error.ToString() + "; Remote steamId: " + remoteSteamId.Value.ToString());
 		}
 
-#endregion
+		#endregion
 
 		public FacepunchP2PServer(int maxConnections) : base(maxConnections)
 		{

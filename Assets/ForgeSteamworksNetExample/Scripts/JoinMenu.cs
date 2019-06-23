@@ -48,7 +48,7 @@ namespace ForgeSteamworksNETExample
 		/// Base refresh time for each lobby in the list
 		/// </summary>
 		[SerializeField]
-		private const float serverRefreshTime = 8.0f;
+		private const float serverRefreshTime = 5.0f;
 
 		/// <summary>
 		/// The list of servers the client knows about
@@ -298,6 +298,7 @@ namespace ForgeSteamworksNETExample
 			// Request list of lobbies based on above filters from Steam
 			//SteamMatchmaking.RequestLobbyList();
 			GetLobbiesAsync(lobbyQuery);
+			GetFriendGamesList();
 		}
 
 		private async void GetLobbiesAsync(Steamworks.Data.LobbyQuery lobbyQuery)
@@ -320,37 +321,42 @@ namespace ForgeSteamworksNETExample
 			}
 		}
 
-		/*
+		
 		/// <summary>
 		/// Check if any of the current user's friends play this game and add the lobby to the server list if they do.
 		/// </summary>
 		private void GetFriendGamesList()
 		{
 			// Get the number of regular friends of the current local user
-			var friendCount = SteamFriends.GetFriendCount(EFriendFlags.k_EFriendFlagImmediate);
-			if (friendCount == -1)
-				return;
-
-			for (int i = 0; i < friendCount; ++i)
+			foreach (var friend in SteamFriends.GetFriends())
 			{
-				// Get the Steam ID of the friend
-				var friendSteamId = SteamFriends.GetFriendByIndex(i, EFriendFlags.k_EFriendFlagImmediate);
-
-				// Get what game the friend is playing
-				FriendGameInfo_t gameInfo;
-				if (SteamFriends.GetFriendGamePlayed(friendSteamId, out gameInfo))
+				if (friend.IsPlayingThisGame)
 				{
-					// If they are playing this game as well then get their lobby id
-					if (gameInfo.m_gameID.AppID() == SteamUtils.GetAppID())
-					{
-						AddServer(gameInfo.m_steamIDLobby);
-					}
+					GetFriendInfoAsync(friend);
 				}
 			}
 		}
 
+		private async void GetFriendInfoAsync(Friend friend)
+		{
+			await GetFriendInfo(friend);
+		}
 
+		private async Task GetFriendInfo(Friend friend)
+		{
+			await friend.RequestInfoAsync();
+			if (friend.GameInfo != null)
+			{
+				var friendLobby = friend.GameInfo.Value.Lobby;
+				if (friendLobby.HasValue)
+				{
+					if (friendLobby.Value.Id > 0)
+						AddServer(friendLobby.Value);
+				}
+			}
+		}
 
+		/*
 		/// <summary>
 		/// Handle the RequestLobbyList Steam API callback
 		/// </summary>

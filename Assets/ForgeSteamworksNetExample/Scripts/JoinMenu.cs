@@ -428,6 +428,8 @@ namespace ForgeSteamworksNETExample
 		private void OnDestroy()
 		{
 			SteamMatchmaking.OnLobbyDataChanged -= OnLobbyDataUpdated;
+			SteamMatchmaking.OnLobbyMemberJoined -= OnLobbyMemberJoined;
+			SteamMatchmaking.OnLobbyMemberLeave -= OnLobbyMemberLeave;
 		}
 
 		private void OnApplicationQuit()

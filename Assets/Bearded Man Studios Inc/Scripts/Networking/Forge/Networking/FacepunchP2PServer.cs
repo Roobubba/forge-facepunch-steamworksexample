@@ -61,7 +61,9 @@ namespace BeardedManStudios.Forge.Networking
 		/// <param name="remoteSteamId">SteamId of the remote peer</param>
 		private void OnP2PConnectionFailed(SteamId remoteSteamId, P2PSessionError error)
 		{
-			Logging.BMSLog.Log("OnP2PConnectionFailed with error: " + error.ToString() + "; Remote steamId: " + remoteSteamId.Value.ToString());
+			Logging.BMSLog.Log("OnP2PConnectionFailed with error: " + error.ToString());
+			if (!SteamNetworking.CloseP2PSessionWithUser(remoteSteamId))
+				Logging.BMSLog.Log("Failed to close P2P Session with remote steam user: " + remoteSteamId.Value.ToString());
 		}
 
 		#endregion
@@ -250,8 +252,6 @@ namespace BeardedManStudios.Forge.Networking
 
 			Logging.BMSLog.Log("Created Lobby Async: lobby Id = " + lobbyCreated.Value.Id);
 			Lobby = lobbyCreated.Value;
-			Lobby.SetPublic();
-			Lobby.SetData("FNR-FP", "blob");
 
 			// Now that we have the steam lobby, safe to set up the FacepunchP2PServer
 			Host(true);

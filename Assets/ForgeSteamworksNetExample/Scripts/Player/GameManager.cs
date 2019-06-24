@@ -17,6 +17,11 @@ namespace ForgeSteamworksNETExample.Player
 		{
 			localPlayer = NetworkManager.Instance.InstantiatePlayer() as NetworkedPlayer;
 
+			NetworkManager.Instance.Networker.disconnected += (sender) =>
+			{
+				SceneManager.LoadScene(1);
+			};
+
 			if (!NetworkManager.Instance.IsServer)
 				return;
 
@@ -50,8 +55,6 @@ namespace ForgeSteamworksNETExample.Player
 			if (Input.GetKey(KeyCode.Escape))
 			{
 				NetworkManager.Instance.Disconnect();
-
-				SceneManager.LoadScene(1);
 			}
 		}
 

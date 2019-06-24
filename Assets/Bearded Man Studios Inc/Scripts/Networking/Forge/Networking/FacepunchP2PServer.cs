@@ -266,6 +266,8 @@ namespace BeardedManStudios.Forge.Networking
 			// Since we are disconnecting we need to stop the read thread
 			Logging.BMSLog.Log("<color=cyan>FacepunchP2P server disconnecting...</color>");
 			StopAcceptingConnections();
+			SteamNetworking.OnP2PSessionRequest -= OnP2PSessionRequest;
+			SteamNetworking.OnP2PConnectionFailed -= OnP2PConnectionFailed;
 			readThreadCancel = true;
 
 			lock (Players)

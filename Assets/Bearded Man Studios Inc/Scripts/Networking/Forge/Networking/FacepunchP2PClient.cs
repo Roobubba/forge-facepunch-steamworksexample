@@ -150,7 +150,6 @@ namespace BeardedManStudios.Forge.Networking
 				});
 
 				SteamNetworking.OnP2PConnectionFailed += OnP2PConnectionFailed;
-
 			}
 			catch (Exception e)
 			{
@@ -169,15 +168,25 @@ namespace BeardedManStudios.Forge.Networking
 
 		private async System.Threading.Tasks.Task ConnectToLobby(Steamworks.Data.Lobby lobbyToJoin, bool pendCreates)
 		{
-			RoomEnter roomEnter = await lobbyToJoin.Join();
-			if (roomEnter != RoomEnter.Success)
+			int connectCounter = 0;
+			do
 			{
-				Logging.BMSLog.Log("Error connecting to lobby returned: " + roomEnter.ToString());
-				return;
+				var roomEnter = await lobbyToJoin.Join();
+				if (roomEnter == RoomEnter.Success)
+				{
+					Lobby = lobbyToJoin;
+					Logging.BMSLog.Log("Connected to lobby, owner.Id = " + lobbyToJoin.Owner.Id.Value);
+					Connect(Lobby.Owner.Id, pendCreates);
+					return;
+				}
+			} while (++connectCounter < CONNECT_TRIES);
+
+			if (connectCounter >= CONNECT_TRIES)
+			{
+				Logging.BMSLog.LogWarning("Error connecting to lobby");
+				if (connectAttemptFailed != null)
+					connectAttemptFailed(this);
 			}
-			Lobby = lobbyToJoin;
-			Logging.BMSLog.Log("Connected to lobby, owner.Id = " + lobbyToJoin.Owner.Id.Value);
-			Connect(Lobby.Owner.Id, pendCreates);
 		}
 
 		/// <summary>
@@ -187,6 +196,8 @@ namespace BeardedManStudios.Forge.Networking
 		public override void Disconnect(bool forced)
 		{
 			Logging.BMSLog.Log("<color=cyan>FacepunchP2P client disconnecting...</color>");
+
+			SteamNetworking.OnP2PConnectionFailed -= OnP2PConnectionFailed;
 
 			if (Lobby.Id.Value > 0)
 				Lobby.Leave();

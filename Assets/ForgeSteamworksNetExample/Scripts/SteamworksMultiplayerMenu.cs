@@ -60,7 +60,7 @@ namespace ForgeSteamworksNETExample
 #endif
 
 			//SteamAPI.Init();
-
+			IsConnecting = false;
 			GetPlayerSteamInformation();
 
 			for (int i = 0; i < ToggledButtons.Length; ++i)
@@ -118,7 +118,7 @@ namespace ForgeSteamworksNETExample
 				});
 			};
 
-			client.bindFailure += sender =>
+			client.bindFailure += (sender) =>
 			{
 				MainThreadManager.Run(() =>
 				{
@@ -126,7 +126,7 @@ namespace ForgeSteamworksNETExample
 				});
 			};
 
-			client.disconnected += sender =>
+			client.disconnected += (sender) =>
 			{
 				MainThreadManager.Run(() =>
 				{
@@ -160,6 +160,9 @@ namespace ForgeSteamworksNETExample
 			var gameName = serverName.text == "" ? $"{personalName}'s game" : serverName.text;
 
 			var lobby = ((FacepunchP2PServer)server).Lobby;
+
+			// Set the lobby to public
+			lobby.SetPublic();
 
 			// Set the name of the lobby
 			lobby.SetData("name", gameName);

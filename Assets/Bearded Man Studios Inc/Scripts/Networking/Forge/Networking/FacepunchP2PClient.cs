@@ -35,15 +35,6 @@ namespace BeardedManStudios.Forge.Networking
 		private bool headerExchanged = false;
 
 		/// <summary>
-		/// Callback for SteamNetworking.OnP2PConnectionFailed
-		/// </summary>
-		/// <param name="remoteSteamId">SteamId of the remote peer</param>
-		private void OnP2PConnectionFailed(SteamId remoteSteamId, P2PSessionError error)
-		{
-			Logging.BMSLog.Log("OnP2PConnectionFailed with error: " + error.ToString() + "; Remote steamId: " + remoteSteamId.Value.ToString());
-		}
-
-		/// <summary>
 		/// Sends data to the server
 		/// </summary>
 		/// <param name="frame">Data to send</param>
@@ -69,13 +60,18 @@ namespace BeardedManStudios.Forge.Networking
 		/// <param name="messageGroupId">The Binary.GroupId of the massage, use MessageGroupIds.START_OF_GENERIC_IDS + desired_id</param>
 		/// <param name="reliable">True if message must be delivered</param>
 		/// <param name="objectsToSend">Array of vars to be sent, read them with Binary.StreamData.GetBasicType<typeOfObject>()</param>
-		public virtual void Send(Receivers receivers = Receivers.Server, int messageGroupId = MessageGroupIds.START_OF_GENERIC_IDS, bool reliable = false , params object[] objectsToSend)
+		public virtual void Send(Receivers receivers = Receivers.Server, int messageGroupId = MessageGroupIds.START_OF_GENERIC_IDS, bool reliable = false, params object[] objectsToSend)
 		{
 			BMSByte data = ObjectMapper.BMSByte(objectsToSend);
 			Binary sendFrame = new Binary(Time.Timestep, false, data, receivers, messageGroupId, false);
 			Send(sendFrame, reliable);
 		}
 
+		/// <summary>
+		/// Connect this FacepunchP2PClient to a steam lobby
+		/// </summary>
+		/// <param name="lobbyToJoin">The Facepunch <see cref="Steamworks.Data.Lobby"/> object to join</param>
+		/// <param name="pendCreates">Immediately set the NetWorker::PendCreates to true</param>
 		public void Connect(Steamworks.Data.Lobby lobbyToJoin, bool pendCreates = false)
 		{
 			if (Disposed)
@@ -85,9 +81,9 @@ namespace BeardedManStudios.Forge.Networking
 		}
 
 		/// <summary>
-		/// Connect this FacepunchP2PClient to a FacepunchP2PServer hosted by steam user with SteamId specified
+		/// Connect this FacepunchP2PClient directly to a steam user's FacepunchP2PServer with SteamId specified
 		/// </summary>
-		/// <param name="hostId">The host's SteamID object</param>
+		/// <param name="hostId">The host's <see cref="SteamId"/> SteamId object</param>
 		/// <param name="pendCreates">Immediately set the NetWorker::PendCreates to true</param>
 		public void Connect(SteamId hostId, bool pendCreates = false)
 		{
@@ -100,7 +96,6 @@ namespace BeardedManStudios.Forge.Networking
 
 			try
 			{
-				BeardedManStudios.Forge.Logging.BMSLog.Log("start of Connect() try statement");
 				ushort clientPort = DEFAULT_PORT;
 
 				// Make sure not to listen on the same port as the server for local networks
@@ -126,7 +121,7 @@ namespace BeardedManStudios.Forge.Networking
 
 				//Let myself know I connected successfully
 				OnPlayerConnected(server);
-				Logging.BMSLog.Log("OnPlayerConnected");
+
 				// Set myself as a connected client
 				server.Connected = true;
 
@@ -149,9 +144,6 @@ namespace BeardedManStudios.Forge.Networking
 							connectAttemptFailed(this);
 					}
 				});
-
-				SteamNetworking.OnP2PConnectionFailed += OnP2PConnectionFailed;
-				Logging.BMSLog.Log("OnP2PConnectionFailed event subscribed");
 			}
 			catch (Exception e)
 			{
@@ -163,32 +155,18 @@ namespace BeardedManStudios.Forge.Networking
 			}
 		}
 
+		/// <summary>
+		/// Connects to a Steam Lobby then kicks off connection to the lobby owner's SteamId
+		/// </summary>
+		/// <param name="lobbyToJoin">The <see cref="Steamworks.Data.Lobby"/> to join</param>
+		/// <param name="pendCreates">Set the NetWorker::PendCreates to true</param>
 		private async void ConnectToLobbyAsync(Steamworks.Data.Lobby lobbyToJoin, bool pendCreates)
 		{
-			await ConnectToLobby(lobbyToJoin, pendCreates);
-		}
-
-		private async System.Threading.Tasks.Task ConnectToLobby(Steamworks.Data.Lobby lobbyToJoin, bool pendCreates)
-		{
-			int connectCounter = 0;
-			do
-			{
-				var roomEnter = await lobbyToJoin.Join();
-				if (roomEnter == RoomEnter.Success)
-				{
-					Lobby = lobbyToJoin;
-					Logging.BMSLog.Log("Connected to lobby, owner.Id = " + lobbyToJoin.Owner.Id.Value);
-					Connect(Lobby.Owner.Id, pendCreates);
-					return;
-				}
-			} while (++connectCounter < CONNECT_TRIES);
-
-			if (connectCounter >= CONNECT_TRIES)
-			{
-				Logging.BMSLog.LogWarning("Error connecting to lobby");
-				if (connectAttemptFailed != null)
-					connectAttemptFailed(this);
-			}
+			RoomEnter roomEnter = await lobbyToJoin.Join();
+			if (roomEnter != RoomEnter.Success)
+				return;
+			Lobby = lobbyToJoin;
+			Connect(Lobby.Owner.Id, pendCreates);
 		}
 
 		/// <summary>
@@ -198,8 +176,6 @@ namespace BeardedManStudios.Forge.Networking
 		public override void Disconnect(bool forced)
 		{
 			Logging.BMSLog.Log("<color=cyan>FacepunchP2P client disconnecting...</color>");
-
-			SteamNetworking.OnP2PConnectionFailed -= OnP2PConnectionFailed;
 
 			if (Lobby.Id.Value > 0)
 				Lobby.Leave();
@@ -407,7 +383,6 @@ namespace BeardedManStudios.Forge.Networking
 		{
 			Send(GeneratePong(time));
 		}
-
 
 		/// <summary>
 		/// Reads the frame stream as if it were read on the network

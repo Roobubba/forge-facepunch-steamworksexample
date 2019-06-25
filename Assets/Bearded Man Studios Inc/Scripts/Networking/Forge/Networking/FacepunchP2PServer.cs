@@ -20,8 +20,14 @@ namespace BeardedManStudios.Forge.Networking
 
 		public Dictionary<SteamId, SteamNetworkingPlayer> steamPlayers = new Dictionary<SteamId, SteamNetworkingPlayer>();
 
+		/// <summary>
+		/// Callback on server Host() completion
+		/// </summary>
 		public event BaseNetworkEvent serverCreated;
 
+		/// <summary>
+		/// Callback on server Host() completion
+		/// </summary>
 		protected void OnServerCreated()
 		{
 			if (serverCreated != null)
@@ -35,7 +41,7 @@ namespace BeardedManStudios.Forge.Networking
 		private CommonServerLogic commonServerLogic;
 		private SteamNetworkingPlayer currentReadingPlayer = null;
 
-#region Steam P2P Callbacks
+		#region Steam P2P Callbacks
 
 		/// <summary>
 		/// Callback for SteamNetworking.OnP2PSessionRequest
@@ -48,20 +54,9 @@ namespace BeardedManStudios.Forge.Networking
 			{
 				if (!SteamNetworking.AcceptP2PSessionWithUser(requestorSteamId))
 					Logging.BMSLog.LogWarning("Could not accept P2P Session with user: " + requestorSteamId.Value);
-				else
-					Logging.BMSLog.Log("P2PSessionRequest accepted with user: " + requestorSteamId.Value);
 			}
 			else
-				Logging.BMSLog.Log("P2P Request received but server is not accepting connections");
-		}
-
-		/// <summary>
-		/// Callback for SteamNetworking.OnP2PConnectionFailed
-		/// </summary>
-		/// <param name="remoteSteamId">SteamId of the remote peer</param>
-		private void OnP2PConnectionFailed(SteamId remoteSteamId, P2PSessionError error)
-		{
-			Logging.BMSLog.Log("OnP2PConnectionFailed with error: " + error.ToString() + "; Remote steamId: " + remoteSteamId.Value.ToString());
+				Logging.BMSLog.LogWarning("P2P Request received but server is not accepting connections");
 		}
 
 		#endregion
@@ -71,7 +66,6 @@ namespace BeardedManStudios.Forge.Networking
 			BannedAddresses = new List<string>();
 			commonServerLogic = new CommonServerLogic(this);
 			SteamNetworking.OnP2PSessionRequest += OnP2PSessionRequest;
-			SteamNetworking.OnP2PConnectionFailed += OnP2PConnectionFailed;
 		}
 
 		/// <summary>
@@ -122,7 +116,7 @@ namespace BeardedManStudios.Forge.Networking
 			{
 				for (int i = 0; i < Players.Count; i++)
 				{
-				   var player = Players[i];
+					var player = Players[i];
 
 					if (!commonServerLogic.PlayerIsReceiver(player, frame, ProximityDistance, skipPlayer, ProximityModeUpdateFrequency))
 						continue;
@@ -131,7 +125,7 @@ namespace BeardedManStudios.Forge.Networking
 					{
 						Send(player, frame, reliable);
 					}
-					catch(Exception e)
+					catch (Exception e)
 					{
 						Logging.BMSLog.LogException(e);
 						Disconnect(player, true);
@@ -172,6 +166,7 @@ namespace BeardedManStudios.Forge.Networking
 		/// <summary>
 		/// Start the Forge Networking server on this Facepunch Steamworks client
 		/// </summary>
+		/// <param name="haveLobby">Boolean used internally to tell whether we have already created the lobby</param>
 		public void Host(bool haveLobby = false)
 		{
 			if (Disposed)
@@ -181,14 +176,13 @@ namespace BeardedManStudios.Forge.Networking
 			{
 				if (!haveLobby)
 				{
-					CreateLobbyAsync();
+					CreateLobby();
 					return;
 				}
 
 				var selfSteamId = SteamClient.SteamId;
 				Client = new CachedFacepunchP2PClient(selfSteamId);
-				Me = new NetworkingPlayer(ServerPlayerCounter++, selfSteamId, true, this)
-				{
+				Me = new NetworkingPlayer(ServerPlayerCounter++, selfSteamId, true, this) {
 					InstanceGuid = InstanceGuid.ToString()
 				};
 
@@ -230,25 +224,15 @@ namespace BeardedManStudios.Forge.Networking
 		/// Creates a steam lobby
 		/// </summary>
 		/// <returns></returns>
-		private async void CreateLobbyAsync()
-		{
-			await CreateLobby();
-		}
-
-		/// <summary>
-		/// Creates a steam lobby
-		/// </summary>
-		/// <returns></returns>
-		private async System.Threading.Tasks.Task CreateLobby()
+		private async void CreateLobby()
 		{
 			Steamworks.Data.Lobby? lobbyCreated = await SteamMatchmaking.CreateLobbyAsync(MaxConnections);
 			if (!lobbyCreated.HasValue)
 			{
-				Logging.BMSLog.Log("Error creating lobby");
+				Logging.BMSLog.LogWarning("Could not create lobby");
 				return;
 			}
 
-			Logging.BMSLog.Log("Created Lobby Async: lobby Id = " + lobbyCreated.Value.Id);
 			Lobby = lobbyCreated.Value;
 
 			// Now that we have the steam lobby, safe to set up the FacepunchP2PServer
@@ -264,8 +248,6 @@ namespace BeardedManStudios.Forge.Networking
 			// Since we are disconnecting we need to stop the read thread
 			Logging.BMSLog.Log("<color=cyan>FacepunchP2P server disconnecting...</color>");
 			StopAcceptingConnections();
-			SteamNetworking.OnP2PSessionRequest -= OnP2PSessionRequest;
-			SteamNetworking.OnP2PConnectionFailed -= OnP2PConnectionFailed;
 			readThreadCancel = true;
 
 			lock (Players)
@@ -307,7 +289,6 @@ namespace BeardedManStudios.Forge.Networking
 		/// <param name="client">The target client to be disconnected</param>
 		public void Disconnect(NetworkingPlayer player, bool forced)
 		{
-			Logging.BMSLog.Log("Disconnect called on player " + player.Name);
 			commonServerLogic.Disconnect(player, forced, DisconnectingPlayers, ForcedDisconnectingPlayers);
 		}
 
@@ -337,7 +318,6 @@ namespace BeardedManStudios.Forge.Networking
 			}
 
 			// Tell the player that they are getting disconnected
-			Logging.BMSLog.Log("Sending ConnectionClose to player " + player.Name);
 			Send(player, new ConnectionClose(Time.Timestep, false, Receivers.Target, MessageGroupIds.DISCONNECT, false), !forced);
 
 			if (!forced)
@@ -360,8 +340,6 @@ namespace BeardedManStudios.Forge.Networking
 		{
 			steamPlayers.Remove(player.SteamID);
 			OnPlayerDisconnected(player);
-
-			Logging.BMSLog.Log("FinalizeRemovePlayer " + player.Name);
 
 			if (forced)
 				ForcedDisconnectingPlayers.Remove(player);
@@ -419,7 +397,7 @@ namespace BeardedManStudios.Forge.Networking
 
 					BandwidthIn += (ulong)packet.Size;
 				}
-				catch(Exception e)
+				catch (Exception e)
 				{
 					Logging.BMSLog.LogException(e);
 
@@ -646,8 +624,6 @@ namespace BeardedManStudios.Forge.Networking
 
 			if (frame is ConnectionClose)
 			{
-				// TODO:  Check is this return send command required?
-				//Send(currentReadingPlayer, new ConnectionClose(Time.Timestep, false, Receivers.Server, MessageGroupIds.DISCONNECT, false), false);
 				Disconnect(currentReadingPlayer, true);
 				CleanupDisconnections();
 				return;

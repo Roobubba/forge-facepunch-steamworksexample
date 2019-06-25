@@ -21,7 +21,6 @@ namespace BeardedManStudios.Forge.Networking
 
 		private SteamId steamEndPoint;
 		private BMSByte recBuffer = new BMSByte();
-		private Dictionary<EndPoint, string> connections = new Dictionary<EndPoint, string>();
 
 		public CachedFacepunchP2PClient()
 		{
@@ -60,7 +59,6 @@ namespace BeardedManStudios.Forge.Networking
 				from = packet.Value.SteamId;
 				recBuffer.SetSize(packet.Value.Data.Length);
 				recBuffer.byteArr = packet.Value.Data;
-				//Logging.BMSLog.Log("packet received from " + from.Value.ToString() + ". Length = " + packet.Value.Data.Length);
 				return recBuffer;
 			}
 
@@ -82,10 +80,6 @@ namespace BeardedManStudios.Forge.Networking
 			{
 				Logging.BMSLog.LogWarningFormat("CachedSteamP2PClient:DoSend() WARNING: Unable to send packet to {0}", steamId.Value);
 			}
-			//else
-			//{
-			//	Logging.BMSLog.Log("packet sent to " + steamId.Value.ToString() + ". Length = " + bytes);
-			//}
 
 			return 0;
 		}
@@ -136,10 +130,6 @@ namespace BeardedManStudios.Forge.Networking
 				{
 					if (steamEndPoint != SteamClient.SteamId)
 						Logging.BMSLog.LogWarning("Could not close P2P Session with user: " + steamEndPoint.Value);
-				}
-				else
-				{
-					Logging.BMSLog.Log("Closed P2PSession with user: " + steamEndPoint.Value.ToString());
 				}
 			}
 		}

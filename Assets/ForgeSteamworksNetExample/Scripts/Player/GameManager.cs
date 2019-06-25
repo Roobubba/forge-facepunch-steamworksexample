@@ -19,7 +19,10 @@ namespace ForgeSteamworksNETExample.Player
 
 			NetworkManager.Instance.Networker.disconnected += (sender) =>
 			{
-				SceneManager.LoadScene(1);
+				MainThreadManager.Run(() =>
+				{
+					SceneManager.LoadScene(1);
+				});
 			};
 
 			if (!NetworkManager.Instance.IsServer)
@@ -27,7 +30,7 @@ namespace ForgeSteamworksNETExample.Player
 
 			NetworkManager.Instance.Networker.playerDisconnected += (player, networker) =>
 			{
-				MainThreadManager.Run((() =>
+				MainThreadManager.Run(() =>
 				{
 					List<NetworkObject> toDelete = new List<NetworkObject>();
 					foreach (var obj in networker.NetworkObjectList)
@@ -46,13 +49,13 @@ namespace ForgeSteamworksNETExample.Player
 							toDelete[i].Destroy();
 						}
 					}
-				}));
+				});
 			};
 		}
 
 		private void Update()
 		{
-			if (Input.GetKey(KeyCode.Escape))
+			if (Input.GetKeyDown(KeyCode.Escape))
 			{
 				NetworkManager.Instance.Disconnect();
 			}

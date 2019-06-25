@@ -60,6 +60,7 @@ namespace ForgeSteamworksNETExample
 #endif
 
 			//SteamAPI.Init();
+			SteamNetworking.CloseP2PSessionWithUser(0);
 			IsConnecting = false;
 			GetPlayerSteamInformation();
 

@@ -283,9 +283,7 @@ namespace ForgeSteamworksNETExample
 			// Near and Far filters are also available on LobbyQuery
 			lobbyQuery.FilterDistanceWorldwide();
 
-			// Increase the max results from 50 just in case they're dropping off the list for further afield players
-			// NB this is temporary while Facepunch.Steamworks has no lobby string filters
-			lobbyQuery.WithMaxResults(200);
+			lobbyQuery.WithKeyValue("fnr_gameId", "forgeFacepunchGame");
 
 			// Get servers from everywhere change it to ELobbyDistanceFilter.Default to get only near servers
 			//SteamMatchmaking.AddRequestLobbyListDistanceFilter(ELobbyDistanceFilter.k_ELobbyDistanceFilterWorldwide);
@@ -298,7 +296,7 @@ namespace ForgeSteamworksNETExample
 			// Request list of lobbies based on above filters from Steam
 			//SteamMatchmaking.RequestLobbyList();
 			GetLobbiesAsync(lobbyQuery);
-			GetFriendGamesList();
+			//GetFriendGamesList();
 		}
 
 		private async void GetLobbiesAsync(Steamworks.Data.LobbyQuery lobbyQuery)
@@ -313,10 +311,7 @@ namespace ForgeSteamworksNETExample
 			{
 				foreach (var lobby in lobbies)
 				{
-					if (lobby.GetData("fnr_gameId") == "forgeFacepunchGame")
-					{
-						AddServer(lobby);
-					}
+					AddServer(lobby);
 				}
 			}
 		}

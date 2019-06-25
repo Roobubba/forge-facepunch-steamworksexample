@@ -100,6 +100,7 @@ namespace BeardedManStudios.Forge.Networking
 
 			try
 			{
+				BeardedManStudios.Forge.Logging.BMSLog.Log("start of Connect() try statement");
 				ushort clientPort = DEFAULT_PORT;
 
 				// Make sure not to listen on the same port as the server for local networks
@@ -125,7 +126,7 @@ namespace BeardedManStudios.Forge.Networking
 
 				//Let myself know I connected successfully
 				OnPlayerConnected(server);
-
+				Logging.BMSLog.Log("OnPlayerConnected");
 				// Set myself as a connected client
 				server.Connected = true;
 
@@ -150,6 +151,7 @@ namespace BeardedManStudios.Forge.Networking
 				});
 
 				SteamNetworking.OnP2PConnectionFailed += OnP2PConnectionFailed;
+				Logging.BMSLog.Log("OnP2PConnectionFailed event subscribed");
 			}
 			catch (Exception e)
 			{

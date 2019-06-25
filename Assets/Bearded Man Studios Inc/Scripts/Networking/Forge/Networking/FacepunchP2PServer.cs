@@ -61,9 +61,7 @@ namespace BeardedManStudios.Forge.Networking
 		/// <param name="remoteSteamId">SteamId of the remote peer</param>
 		private void OnP2PConnectionFailed(SteamId remoteSteamId, P2PSessionError error)
 		{
-			Logging.BMSLog.Log("OnP2PConnectionFailed with error: " + error.ToString());
-			if (!SteamNetworking.CloseP2PSessionWithUser(remoteSteamId))
-				Logging.BMSLog.Log("Failed to close P2P Session with remote steam user: " + remoteSteamId.Value.ToString());
+			Logging.BMSLog.Log("OnP2PConnectionFailed with error: " + error.ToString() + "; Remote steamId: " + remoteSteamId.Value.ToString());
 		}
 
 		#endregion
@@ -309,6 +307,7 @@ namespace BeardedManStudios.Forge.Networking
 		/// <param name="client">The target client to be disconnected</param>
 		public void Disconnect(NetworkingPlayer player, bool forced)
 		{
+			Logging.BMSLog.Log("Disconnect called on player " + player.Name);
 			commonServerLogic.Disconnect(player, forced, DisconnectingPlayers, ForcedDisconnectingPlayers);
 		}
 
@@ -338,6 +337,7 @@ namespace BeardedManStudios.Forge.Networking
 			}
 
 			// Tell the player that they are getting disconnected
+			Logging.BMSLog.Log("Sending ConnectionClose to player " + player.Name);
 			Send(player, new ConnectionClose(Time.Timestep, false, Receivers.Target, MessageGroupIds.DISCONNECT, false), !forced);
 
 			if (!forced)
@@ -360,6 +360,8 @@ namespace BeardedManStudios.Forge.Networking
 		{
 			steamPlayers.Remove(player.SteamID);
 			OnPlayerDisconnected(player);
+
+			Logging.BMSLog.Log("FinalizeRemovePlayer " + player.Name);
 
 			if (forced)
 				ForcedDisconnectingPlayers.Remove(player);

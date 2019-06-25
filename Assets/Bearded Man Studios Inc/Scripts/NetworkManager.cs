@@ -630,7 +630,7 @@ namespace BeardedManStudios.Forge.Networking.Unity
                             Networker.objectCreated -= CreatePendingObjects;
                     }
                 }
-                    
+
 
 				return;
 			}
@@ -667,6 +667,28 @@ namespace BeardedManStudios.Forge.Networking.Unity
 
                 if (pendingObjects.Count == 0 && loadingScenes.Count == 0)
                     Networker.objectCreated -= CreatePendingObjects;
+				else if (pendingObjects.Count != 0 && loadingScenes.Count == 0)
+                {
+	                // Pending network behavior list is not empty when there are no more scenes to load.
+	                // Probably network behaviours that were placed in the scene have already been destroyed on the server and other clients!
+
+	                List<GameObject> objetsToDestroy = new List<GameObject>(pendingObjects.Count);
+	                foreach (var behavior in pendingObjects.Values)
+	                {
+		                var gameObject = ((NetworkBehavior) behavior).gameObject;
+		                if (!objetsToDestroy.Contains(gameObject))
+			                objetsToDestroy.Add(gameObject);
+	                }
+
+	                pendingObjects.Clear();
+
+	                foreach (var o in objetsToDestroy)
+	                {
+		                Destroy(o);
+	                }
+
+	                objetsToDestroy.Clear();
+                }
 
             } else
 			{
@@ -676,5 +698,27 @@ namespace BeardedManStudios.Forge.Networking.Unity
 
 			}
 		}
-	}
+
+		/// <summary>
+		/// A helper function to retrieve a GameObject by its network id.
+		/// </summary>
+		/// <param name="id">Network id of the gameobject</param>
+        public GameObject GetGameObjectByNetworkId(uint id)
+        {
+            if (Networker == null ) //Only check Networker, as NetworkObjects are always initiliased.
+            {
+                Debug.LogWarning("Networker is null. Network manager has not been initiliased.");
+                return null;
+            }
+
+            NetworkObject foundNetworkObject = null;
+			if (!Networker.NetworkObjects.TryGetValue(id, out foundNetworkObject) || foundNetworkObject.AttachedBehavior == null)
+            {
+                Debug.LogWarning("No object found by id or object has no attached behavior.");
+                return null;
+            }
+
+            return ((NetworkBehavior)foundNetworkObject.AttachedBehavior).gameObject;
+        }
+    }
 }

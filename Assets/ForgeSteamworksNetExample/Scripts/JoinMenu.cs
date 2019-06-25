@@ -182,6 +182,7 @@ namespace ForgeSteamworksNETExample
 
 			// Make sure every item in the UI is positioned well
 			RepositionItems();
+			return;
 		}
 
 		/// <summary>
@@ -295,27 +296,31 @@ namespace ForgeSteamworksNETExample
 
 			// Request list of lobbies based on above filters from Steam
 			//SteamMatchmaking.RequestLobbyList();
-			GetLobbiesAsync(lobbyQuery);
-			//GetFriendGamesList();
+			GetLobbies(lobbyQuery);
+			GetFriendGamesList();
 		}
 
-		private async void GetLobbiesAsync(Steamworks.Data.LobbyQuery lobbyQuery)
-		{
-			await GetLobbies(lobbyQuery);
-		}
-
-		private async Task GetLobbies(Steamworks.Data.LobbyQuery lobbyQuery)
+		private async void GetLobbies(Steamworks.Data.LobbyQuery lobbyQuery)
 		{
 			var lobbies = await lobbyQuery.RequestAsync();
+			HashSet<ulong> lobbyIds = new HashSet<ulong>();
 			if (lobbies != null)
 			{
 				foreach (var lobby in lobbies)
 				{
 					AddServer(lobby);
+					lobbyIds.Add(lobby.Id.Value);
+				}
+			}
+
+			for (int i = 0; i < serverList.Count; i++)
+			{
+				if (!lobbyIds.Contains(serverList[i].lobby.Id))
+				{
+					RemoveServer(i);
 				}
 			}
 		}
-
 		
 		/// <summary>
 		/// Check if any of the current user's friends play this game and add the lobby to the server list if they do.
@@ -327,17 +332,12 @@ namespace ForgeSteamworksNETExample
 			{
 				if (friend.IsPlayingThisGame)
 				{
-					GetFriendInfoAsync(friend);
+					GetFriendInfo(friend);
 				}
 			}
 		}
 
-		private async void GetFriendInfoAsync(Friend friend)
-		{
-			await GetFriendInfo(friend);
-		}
-
-		private async Task GetFriendInfo(Friend friend)
+		private async void GetFriendInfo(Friend friend)
 		{
 			await friend.RequestInfoAsync();
 			if (friend.GameInfo != null)
@@ -350,22 +350,6 @@ namespace ForgeSteamworksNETExample
 				}
 			}
 		}
-
-		/*
-		/// <summary>
-		/// Handle the RequestLobbyList Steam API callback
-		/// </summary>
-		/// <param name="result">The <see cref="LobbyMatchList_t"/> result set</param>
-		private void OnLobbyListRequested(LobbyMatchList_t result)
-		{
-			for (int i = 0; i < result.m_nLobbiesMatching; i++)
-			{
-				var lobbyId = SteamMatchmaking.GetLobbyByIndex(i);
-				AddServer(lobbyId);
-				SteamMatchmaking.RequestLobbyData(lobbyId);
-			}
-		}
-		*/
 
 		/// <summary>
 		/// Handle the RequestLobbyData Steam API callback

@@ -59,9 +59,9 @@ namespace ForgeSteamworksNETExample
 			throw new SystemException("Missing STEAMWORKS define. This menu will not work without it");
 #endif
 
-			//SteamAPI.Init();
+			// This forces the app to initialize SteamNetworking.
 			SteamNetworking.CloseP2PSessionWithUser(0);
-			IsConnecting = false;
+
 			GetPlayerSteamInformation();
 
 			for (int i = 0; i < ToggledButtons.Length; ++i)
@@ -141,19 +141,17 @@ namespace ForgeSteamworksNETExample
 		/// </summary>
 		public void Host()
 		{
-			// Currently there is a bug in the SteamP2PServer code where the lobby max member count is hard coded to be 5.
-			// Until a fix is in place please change line 186 of the SteamP2PServer to read
-			//    `m_CreateLobbyResult = SteamMatchmaking.CreateLobby(lobbyType, MaxConnections);`
 			server = new FacepunchP2PServer(maximumNumberOfPlayers);
 			((FacepunchP2PServer)server).serverCreated += OnServerCreated;
-			// Don't yet have a way to invite players to lobby. Until then all hosts are set to be public
-			//((SteamP2PServer)server).Host(SteamUser.GetSteamID(), isPrivateLobby ? ELobbyType.k_ELobbyTypeFriendsOnly : ELobbyType.k_ELobbyTypePublic, OnLobbyReady);
 			((FacepunchP2PServer)server).Host();
 			FacepunchSteamworksController.SetNetworker((BaseFacepunchP2P)server);
 			server.playerTimeout += (player, sender) => { Debug.Log("Player " + player.NetworkId + " timed out"); };
-
 		}
 
+		/// <summary>
+		/// Callback from FacepunchP2PServer in which we can set all our lobby data as required
+		/// </summary>
+		/// <param name="sender"></param>
 		private void OnServerCreated(NetWorker sender)
 		{
 			// If the host has not set a server name then let's use his/her name instead to name the lobby
@@ -197,7 +195,6 @@ namespace ForgeSteamworksNETExample
 				mgr = networkManager.AddComponent<NetworkManager>();
 			} else if (mgr == null)
 				mgr = Instantiate(networkManager).GetComponent<NetworkManager>();
-
 
 			mgr.Initialize(networker);
 

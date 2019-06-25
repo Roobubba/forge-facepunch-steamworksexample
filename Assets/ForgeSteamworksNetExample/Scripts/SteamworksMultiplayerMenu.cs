@@ -136,6 +136,14 @@ namespace ForgeSteamworksNETExample
 			};
 		}
 
+		public void AbortConnectionAttempt()
+		{
+			if (mgr)
+			{
+				mgr.Disconnect();
+			}
+		}
+
 		/// <summary>
 		/// Handle setting up a host. Called by the host button.
 		/// </summary>
@@ -210,7 +218,7 @@ namespace ForgeSteamworksNETExample
 		/// <summary>
 		/// Called when failed to connect to a lobby.
 		/// </summary>
-		private void ResetButtonsOnFailedConnection()
+		public void ResetButtonsOnFailedConnection()
 		{
 			// Only try to re-enable buttons and clicks if we are receiving a disconnect before
 			// switching to the game scene

@@ -51,6 +51,12 @@ namespace ForgeSteamworksNETExample
 		private const float serverRefreshTime = 5.0f;
 
 		/// <summary>
+		/// Base update time for the full lobby query
+		/// </summary>
+		[SerializeField]
+		private float serverUpdateTime = 15.0f;
+
+		/// <summary>
 		/// The list of servers the client knows about
 		/// </summary>
 		private List<ServerListItemData> serverList = new List<ServerListItemData>();
@@ -103,7 +109,7 @@ namespace ForgeSteamworksNETExample
 
 				// TODO: Might worth extracting the 20.0f into a const or a field to be configured via the inspector
 				//       Is refreshing the list every 20ish seconds good enough?
-				nextListUpdateTime = Time.time + 15.0f + UnityEngine.Random.Range(0.0f, 1.0f);
+				nextListUpdateTime = Time.time + serverUpdateTime + UnityEngine.Random.Range(0.0f, 1.0f);
 			}
 
 			foreach (var server in serverList)
@@ -191,6 +197,10 @@ namespace ForgeSteamworksNETExample
 		/// <param name="index">The index of the server in the list</param>
 		private void RemoveServer(int index)
 		{
+			if (index == selectedServer)
+			{
+				CancelConnectionAttempt();
+			}
 			var o = serverList[index];
 			RemoveServer(o);
 		}
@@ -262,6 +272,16 @@ namespace ForgeSteamworksNETExample
 				connectButtonLabel.text = "Connect";
 				mpMenu.SetSelectedLobby(default(Steamworks.Data.Lobby));
 			}
+		}
+
+		/// <summary>
+		/// Force disconnection and resetting of the menu
+		/// </summary>
+		private void CancelConnectionAttempt()
+		{
+			SetSelectedServer(-1);
+			mpMenu.ResetButtonsOnFailedConnection();
+			mpMenu.AbortConnectionAttempt();
 		}
 
 		/// <summary>
